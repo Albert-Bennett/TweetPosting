@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace TweetPosingBackend.Controller.Helpers
 {
@@ -12,5 +10,8 @@ namespace TweetPosingBackend.Controller.Helpers
         public static string SignatureMethod => Environment.GetEnvironmentVariable("SIGNATURE_METHOD");
         public static string OAuthCustomerSecret => Environment.GetEnvironmentVariable("OAUTH_CUSTOMER_SECRET");
         public static string OAuthAccessSecret => Environment.GetEnvironmentVariable("OAUTH_ACCESS_SECRET");
+        public static string TwiterPostUrl => Environment.GetEnvironmentVariable("TWITTER_POST_URL");
+        public static string TwitterUserAgent => Environment.GetEnvironmentVariable("TWITTER_USER_AGENT");
+        public static string TwitterHostApi => Environment.GetEnvironmentVariable("TWITTER_HOST");
     }
 }

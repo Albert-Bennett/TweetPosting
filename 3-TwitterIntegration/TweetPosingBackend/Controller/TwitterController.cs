@@ -1,7 +1,6 @@
-﻿using Newtonsoft.Json;
+﻿using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Threading.Tasks;
 using TweetPosingBackend.Controller.Helpers;
 using TweetPosingBackend.Model;
@@ -12,26 +11,21 @@ namespace TweetPosingBackend.Controller
     {
         public static async Task<bool> ShareTweet(Tweet tweet)
         {
-            string baseUrl = "https://api.twitter.com/1.1/statuses/update.json";
+            string baseUrl = ConstantValues.TwiterPostUrl;
 
             using(HttpClient client = new HttpClient())
             {
-                string authHeader = TwitterAuthHelper.GetAuthorizationHeader(baseUrl);
+                Tuple<string, FormUrlEncodedContent> data =
+                    TwitterAuthHelper.GetAuthorizationHeader(baseUrl, tweet.Text);
 
-                client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", authHeader);
-                client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "TweetAuthAppDemo1234");
-                client.DefaultRequestHeaders.Add("Host","api.twitter.com");
-
-                StringContent requestData = new StringContent(
-                    $"status={tweet.Text}",
-                    Encoding.UTF8, "application/x-www-form-urlencoded");
+                client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", data.Item1);
+                client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", ConstantValues.TwitterUserAgent);
+                client.DefaultRequestHeaders.Add("Host", ConstantValues.TwitterHostApi);
 
                 client.DefaultRequestHeaders.Accept.Add(
                     new MediaTypeWithQualityHeaderValue("application/json"));
 
-                string endpoint = $"{baseUrl}?screen_name=albert1bennett&status={tweet.Text}";
-
-                var response = await client.PostAsJsonAsync(endpoint, string.Empty);
+                var response = await client.PostAsync(baseUrl, data.Item2);
 
                 string responseString = await response.Content.ReadAsStringAsync();
 

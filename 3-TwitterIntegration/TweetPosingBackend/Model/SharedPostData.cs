@@ -12,5 +12,13 @@ namespace TweetPosingBackend.Model
 
         [JsonProperty("IntegrationType")]
         public IntegrationTypes IntegrationType { get; set; }
+
+        public Tweet ToTweet()
+        {
+            return new Tweet
+            {
+                Text = $"{PostContent} {Url}",
+            };
+        }
     }
 }

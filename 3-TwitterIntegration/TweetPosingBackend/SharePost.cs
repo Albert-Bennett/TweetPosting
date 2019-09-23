@@ -32,7 +32,23 @@ namespace TweetPosingBackend
                 if (string.IsNullOrEmpty(postData.Url))
                     return new BadRequestObjectResult("Pass in a value for the Property PostUrl");
 
-                return new OkObjectResult("All good");
+                bool successfullySharedPost = false;
+
+                switch (postData.IntegrationType)
+                {
+                    case IntegrationTypes.Twitter:
+                        successfullySharedPost = await TwitterController.ShareTweet(postData.ToTweet());
+                        break;
+
+                    case IntegrationTypes.Both:
+                        successfullySharedPost = await TwitterController.ShareTweet(postData.ToTweet());
+                        break;
+                }
+
+                if (successfullySharedPost)
+                    return new OkObjectResult("All good");
+                else
+                    return new BadRequestObjectResult("There was an issure with sharing your post");
             }
 
             return new BadRequestObjectResult("Pass in a request body.");

@@ -1,60 +1,60 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
-using TweetPosingBackend.Controller.Helpers;
 
 namespace TweetPosingBackend.Controller.Helpers
 {
     public static class TwitterAuthHelper
     {
-        public static string GetAuthorizationHeader(string endpoint)
+        public static Tuple<string, FormUrlEncodedContent> GetAuthorizationHeader(string endpoint, string status)
         {
-            //Authorization: OAuth realm = "api.twitter.com",
-            //    oauth_consumer_key = "ymgqpnrmNC9h4ZH729t9Nqiwe",
-            //    oauth_token = "747585394699534336-fqWeiEF0MNTfxwWQe1pdNXqtFZa3pCO",
-            //    oauth_signature_method = "HMAC-SHA1",
-            //    oauth_timestamp = "1566334983", 
-            //    oauth_nonce = "1234eufwiubefibwr3u53hruefsu",
-            //    oauth_version = "1.0", 
-            //    oauth_signature = "tYFch43p4rFfIPM8gGIFSI8Ut5Q%3D"'
+            Dictionary<string, string> data = new Dictionary<string, string>
+            {
+                { "status", status},
+                { "oauth_consumer_key", ConstantValues.OAuthCustomerKey},
+                { "oauth_signature_method", ConstantValues.SignatureMethod },
+                { "oauth_timestamp", DateTimeHelper.ConvertToUnixTimestamp(DateTime.Now).ToString()},
+                { "oauth_nonce", Uri.EscapeDataString(Guid.NewGuid().ToString().Replace("-", string.Empty)) },
+                { "oauth_token", ConstantValues.OAuthToken},
+                { "oauth_version", ConstantValues.OAuthVersion }
+            };
 
-            string nonce = Uri.EscapeDataString(
-                Guid.NewGuid().ToString().Replace("-", string.Empty));
+            data.Add("oauth_signature", GenerateOauthSignature(endpoint, data));
+            string oAuthHeader = GenerateOAuthHeader(data);
 
-            string headerValue = string.Empty;//"OAuth ";
+            FormUrlEncodedContent formData = 
+                new FormUrlEncodedContent(data.Where(kvp => !kvp.Key.StartsWith("oauth_")));
 
-            headerValue += $"oauth_consumer_key={Uri.EscapeDataString(ConstantValues.OAuthCustomerKey)}&";
-            headerValue += $"oauth_nonce={nonce}&";
-            headerValue += $"oauth_signature_method={Uri.EscapeDataString(ConstantValues.SignatureMethod)}&";
-            headerValue += $"oauth_timestamp={DateTimeHelper.TimestampNow()}&";
-            headerValue += $"oauth_token={Uri.EscapeDataString(ConstantValues.OAuthToken)}&";
-            headerValue += $"oauth_version={Uri.EscapeDataString(ConstantValues.OAuthVersion)}";
-            //headerValue += $"status={Uri.EscapeDataString(tweet)}";
-            //headerValue += $"oauth_signature={SignKey(headerValue)}";
-
-            string baseKey = $"POST&{Uri.EscapeDataString(endpoint)}&{headerValue}";
-            string signedKey = SignKey(baseKey);
-
-            headerValue = $"OAuth {headerValue}&oauth_signature={signedKey}";
-
-            return headerValue;
+            return new Tuple<string, FormUrlEncodedContent>(oAuthHeader, formData);
         }
 
-        static string SignKey(string baseString)
+        static string GenerateOauthSignature(string url, Dictionary<string, string> data)
         {
-            string customerSecret = Uri.EscapeDataString(ConstantValues.OAuthCustomerSecret);
-            string accessSecret = Uri.EscapeDataString(ConstantValues.OAuthAccessSecret);
+            var sigString = string.Join("&",
+                data.Union(data)
+                    .Select(kvp => string.Format("{0}={1}", Uri.EscapeDataString(kvp.Key), Uri.EscapeDataString(kvp.Value)))
+                    .OrderBy(s => s));
 
-            string key = $"{customerSecret}&{accessSecret}";
+            string fullSigData = string.Format("{0}&{1}&{2}", "POST",
+                Uri.EscapeDataString(url),
+                Uri.EscapeDataString(sigString.ToString()));
 
-            HMACSHA1 hmac = new HMACSHA1();
-            hmac.Key = Encoding.UTF8.GetBytes(key);
+            HMACSHA1 signatureHasher = new HMACSHA1(new ASCIIEncoding().GetBytes(
+                $"{ConstantValues.OAuthCustomerSecret}&{ConstantValues.OAuthAccessSecret}"));
 
-            byte[] encoded = Encoding.UTF8.GetBytes(baseString);
-            byte[] hash = hmac.ComputeHash(encoded);
+            return Convert.ToBase64String(signatureHasher.ComputeHash(new ASCIIEncoding().GetBytes(fullSigData)));
+        }
 
-            return Convert.ToBase64String(hash);
+        static string GenerateOAuthHeader(Dictionary<string, string> data)
+        {
+            return $@"OAuth { string.Join(", ",
+                data.Where(kvp => kvp.Key.StartsWith("oauth_"))
+                    .Select(kvp => string.Format("{0}=\"{1}\"", 
+                        Uri.EscapeDataString(kvp.Key), Uri.EscapeDataString(kvp.Value)))
+                    .OrderBy(s => s))}";
         }
     }
 }
